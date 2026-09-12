@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Container } from "@/components/layout/Container";
 import "./specimen.css";
 
 // PLACEHOLDER: temporary route. Deleted at the milestone 1 step 3 gate.
@@ -130,7 +131,7 @@ function Section({
 
 export default function Specimen() {
   return (
-    <main className="mx-auto max-w-content px-page py-7">
+    <Container className="py-7">
       <h1 className="text-display-lead font-display">Type specimen</h1>
       <Note>
         Everything below is measured against the real font files, not estimated.
@@ -257,6 +258,6 @@ export default function Specimen() {
           designed at the same time rather than bolted together afterwards.
         </p>
       </Section>
-    </main>
+    </Container>
   );
 }

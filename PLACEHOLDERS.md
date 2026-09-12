@@ -53,14 +53,18 @@ Three ways out, in the order I'd rank them:
 
 ### Studio name — does not exist
 
-There is no studio name and no wordmark. Consequently:
+There is no studio name yet. `brand.name` in `src/config/brand.ts` holds
+`"Studio"` until one is chosen; `src/components/brand/Wordmark.tsx` typesets
+it. `src/app/layout.tsx`'s metadata title reads `brand.name` directly, so it
+will pick up the real name automatically once `brand.ts` is updated — nothing
+else to change.
 
-- `src/config/brand.ts` and `src/components/brand/Wordmark.tsx` do **not exist
-  yet**. They arrive with the layout shell at step 2, which is the first thing
-  that needs to display a name.
-- `src/app/layout.tsx` sets the metadata title to `"Software and data studio"`
-  — deliberately a description rather than a name, so nothing has to be
-  un-invented later. It moves to `brand.name` once that file exists.
+### Contact email — does not exist
+
+`src/components/layout/Header.tsx` has a single nav item, "Contact", as a
+`mailto:` link to `hello@studio.example`. `.example` is the RFC 2606 reserved
+domain — it reads as a placeholder rather than a broken real address. Replace
+with the studio's real address once there is one.
 
 ### `src/app/page.tsx` — holding page
 
