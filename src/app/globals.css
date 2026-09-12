@@ -18,6 +18,29 @@
   --duration-micro: 200ms;
   --duration-element: 400ms;
   --duration-statement: 700ms;
+
+  /* The occlusion seam: where the panel below the hero crosses its last line.
+     Measured in Syne 600, descenders reach -0.203em and round letters overshoot
+     to -0.011em, so an offset inside that band clips descenders and nothing
+     else. Ink deeper than this is cut; scripts/measure-type.mjs fails if the
+     last row has none.
+
+     Baseline distance from the line box's bottom is lh/2 - (asc + desc)/2;
+     Syne sets USE_TYPO_METRICS, so asc 0.925 / desc -0.275 gives the 0.325em.
+     Both values resolve in em where they are used, on the hero itself, so
+     the offset follows its font-size and line-height without being restated. */
+  --seam-below-baseline: 0.069em;
+  --seam-from-bottom: calc(
+    var(--lh-display-lead) * 0.5em - 0.325em - var(--seam-below-baseline)
+  );
+}
+
+/* Cuts the hero's ink at the seam and pulls the next block up to meet it.
+   A translucent panel painted over white text hides nothing, so the
+   occlusion has to be a real cut; the panel begins where the ink stops. */
+@utility hero-seam {
+  clip-path: inset(0 0 var(--seam-from-bottom) 0);
+  margin-bottom: calc(-1 * var(--seam-from-bottom));
 }
 
 /* Smaller type at a shorter measure needs more leading, not the same amount. */
