@@ -10,8 +10,17 @@
  * This sweeps the viewport range against the real font metrics and fails if
  * that happens. Run it whenever the hero copy or the type tokens change.
  *
+ * The headline is set as authored lines made of phrase atoms (see
+ * src/config/hero.mjs): a line is a block, an atom never breaks, and a line
+ * that does not fit wraps at its atoms. The sweep models exactly that, so
+ * what it measures is what the browser lays out.
+ *
+ * It also guards the occlusion seam: the panel below the hero clips whatever
+ * ink sits more than 0.069em below the last line's baseline. If nothing on
+ * the last row reaches that deep, the hero has no occlusion, and that fails.
+ *
  *   node scripts/measure-type.mjs
- *   node scripts/measure-type.mjs --sentence "..."
+ *   node scripts/measure-type.mjs --ending "We build the pair."
  *   node scripts/measure-type.mjs --help
  *
  * See docs/type-system.md for where the constants come from.
@@ -20,18 +29,17 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
+import { heroLines } from '../src/config/hero.mjs'
 
 // --- what we are checking -------------------------------------------------
-
-/** The current hero sentence. Change it here, then re-run this script. */
-const HERO =
-  'Most teams buy the thing that runs and the thing that tells them if it ' +
-  'works from two different places. We build both.'
 
 /** The `--text-display-lead` token, copied verbatim from globals.css. */
 const FONT = 'clamp(2rem, 1.30rem + 3.00vw, 4rem)'
 const TRACKING = -0.02 // em, `--text-display-lead--letter-spacing`
 const FACE = 'Syne:600'
+
+/** `--seam-below-baseline` in globals.css. Ink below this line is clipped. */
+const SEAM_BELOW_BASELINE = 0.069 // em
 
 /**
  * Page grid. Mirrors the spacing tokens in globals.css.
@@ -64,7 +72,7 @@ const RULES = {
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const CACHE = join(HERE, '.font-metrics.json')
-const CACHE_VERSION = 1
+const CACHE_VERSION = 2 // 2: per-glyph ink bottoms, for the seam check
 
 /**
  * Google Fonts serves woff2 to a modern user-agent (Brotli, needs a decoder)
@@ -120,6 +128,7 @@ function readTTF(dv) {
   }
 
   const advances = {}
+  const inkBottoms = {}
   let inkTop = -Infinity
   let inkBottom = Infinity
   const missing = []
@@ -129,11 +138,12 @@ function readTTF(dv) {
     advances[cp] = advance(cp)
     const ink = inkOf(cp)
     if (ink) {
+      inkBottoms[cp] = ink.bottom
       inkTop = Math.max(inkTop, ink.top)
       inkBottom = Math.min(inkBottom, ink.bottom)
     }
   }
-  return { upem, capHeight, xHeight, inkTop, inkBottom, advances, missing }
+  return { upem, capHeight, xHeight, inkTop, inkBottom, advances, inkBottoms, missing }
 }
 
 function pickCmap(dv, base) {
@@ -238,34 +248,47 @@ function toPx(value) {
 
 const contentWidth = (vw) => Math.min(vw - 2 * MARGIN(vw), MAX_CONTENT)
 
-/** Greedy line breaker. Matches how a browser breaks on spaces. */
-function wrap(face, sentence, fontPx, availablePx, trackingEm) {
+/**
+ * Lays out one authored line: greedy over its atoms, an atom never splits.
+ * Matches a block span whose children are `white-space: nowrap` spans.
+ */
+function wrapLine(face, atoms, fontPx, availablePx, trackingEm) {
   const widthOf = (text) => {
     let em = 0
     for (const ch of text) em += face.advances[ch.codePointAt(0)] ?? 0
     return (em + trackingEm * [...text].length) * fontPx
   }
-  const lines = []
-  let line = ''
-  for (const word of sentence.split(' ')) {
-    const candidate = line ? `${line} ${word}` : word
-    if (widthOf(candidate) <= availablePx || !line) line = candidate
+  const rows = []
+  let row = ''
+  for (const atom of atoms) {
+    const candidate = row ? `${row} ${atom}` : atom
+    if (widthOf(candidate) <= availablePx || !row) row = candidate
     else {
-      lines.push({ text: line, px: widthOf(line) })
-      line = word
+      rows.push({ text: row, px: widthOf(row) })
+      row = atom
     }
   }
-  if (line) lines.push({ text: line, px: widthOf(line) })
-  return lines
+  if (row) rows.push({ text: row, px: widthOf(row) })
+  return rows
 }
 
-function sample(face, sentence, vw, fontFor, rule, trackingEm) {
+/** The deepest ink on a row, in em below the baseline (negative). */
+const deepestInk = (face, text) =>
+  Math.min(0, ...[...text].map((ch) => face.inkBottoms[ch.codePointAt(0)] ?? 0))
+
+function sample(face, lines, vw, fontFor, rule, trackingEm) {
   const content = contentWidth(vw)
   const heroW = RULES[rule](vw, content, GUTTER(vw))
   const fontPx = fontFor(vw)
-  const lines = wrap(face, sentence, fontPx, heroW, trackingEm)
-  const longest = Math.max(...lines.map((l) => l.px))
-  return { vw, content, heroW, air: content - heroW, fontPx, lines, longest, fill: (longest / heroW) * 100 }
+  const rows = lines.flatMap((atoms) => wrapLine(face, atoms, fontPx, heroW, trackingEm))
+  const longest = Math.max(...rows.map((l) => l.px))
+  const lastInk = deepestInk(face, rows.at(-1).text)
+  return {
+    vw, content, heroW, air: content - heroW, fontPx, lines: rows, longest,
+    fill: (longest / heroW) * 100,
+    // What the seam actually hides on the last row, in px. Zero means no occlusion.
+    clipped: Math.max(0, -lastInk - SEAM_BELOW_BASELINE) * fontPx,
+  }
 }
 
 // --- cli ------------------------------------------------------------------
@@ -275,7 +298,9 @@ Wrap and monotonicity check for the hero type.
 
   node scripts/measure-type.mjs [options]
 
-  --sentence <text>   Sentence to check          (default: the current hero copy)
+  --ending <text>     Replace the last line with this, as one atom
+  --lines <text>      Whole headline: lines split on "|", atoms on "/"
+                                                 (default: src/config/hero.mjs)
   --font <clamp>      Font-size token            (default: ${FONT})
   --tracking <em>     Letter-spacing in em       (default: ${TRACKING})
   --rule <A|B>        Hero width rule            (default: B)
@@ -285,13 +310,13 @@ Wrap and monotonicity check for the hero type.
   --refresh           Re-fetch the font files instead of using the cache
   --help
 
-Exits 1 if any line overflows its column, or if the hero width is not
-monotonic across the range.
+Exits 1 if any row overflows its column, if the hero width is not monotonic
+across the range, or if the last row has no ink for the seam to clip.
 `
 
 function parseArgs(argv) {
   const opts = {
-    sentence: HERO, font: FONT, tracking: TRACKING, rule: 'B',
+    lines: heroLines, font: FONT, tracking: TRACKING, rule: 'B',
     min: 320, max: 2560, step: 8, refresh: false,
   }
   for (let i = 0; i < argv.length; i++) {
@@ -303,7 +328,9 @@ function parseArgs(argv) {
     }
     if (arg === '--help' || arg === '-h') return null
     else if (arg === '--refresh') opts.refresh = true
-    else if (arg === '--sentence') opts.sentence = next()
+    else if (arg === '--lines') {
+      opts.lines = next().split('|').map((line) => line.split('/').map((atom) => atom.trim()).filter(Boolean))
+    } else if (arg === '--ending') opts.lines = [...opts.lines.slice(0, -1), [next().trim()]]
     else if (arg === '--font') opts.font = next()
     else if (arg === '--tracking') opts.tracking = parseFloat(next())
     else if (arg === '--rule') opts.rule = next().toUpperCase()
@@ -315,6 +342,7 @@ function parseArgs(argv) {
   if (!RULES[opts.rule]) throw new Error(`Unknown rule "${opts.rule}". Expected A or B.`)
   if (opts.min >= opts.max) throw new Error('--min must be below --max')
   if (opts.step < 1) throw new Error('--step must be at least 1')
+  if (!opts.lines.length || opts.lines.some((line) => !line.length)) throw new Error('Every line needs at least one atom')
   return opts
 }
 
@@ -322,17 +350,21 @@ function main(opts, faces) {
   const face = faces[FACE]
   if (!face) throw new Error(`No metrics for ${FACE}. Try --refresh.`)
 
-  const unknown = [...new Set([...opts.sentence].filter((ch) => face.advances[ch.codePointAt(0)] === undefined))]
+  const text = opts.lines.map((line) => line.join(' ')).join(' ')
+  const unknown = [...new Set([...text].filter((ch) => face.advances[ch.codePointAt(0)] === undefined))]
   if (unknown.length) throw new Error(`Not measured for these characters: ${unknown.join(' ')}. Add them to CHARSET and --refresh.`)
+  if (!face.inkBottoms) throw new Error('Cached metrics predate the seam check. Run with --refresh.')
 
   const fontFor = parseClamp(opts.font)
-  const at = (vw) => sample(face, opts.sentence, vw, fontFor, opts.rule, opts.tracking)
+  const at = (vw) => sample(face, opts.lines, vw, fontFor, opts.rule, opts.tracking)
 
-  console.log(`sentence  ${opts.sentence.length} chars, ${opts.sentence.split(' ').length} words`)
+  console.log(`headline  ${text.length} chars, ${text.split(' ').length} words, ${opts.lines.length} authored lines`)
+  for (const line of opts.lines) console.log(`            ${line.join(' / ')}`)
   console.log(`face      ${FACE}, tracking ${opts.tracking}em`)
   console.log(`font      ${opts.font}`)
-  console.log(`rule      ${opts.rule}\n`)
-  console.log('   vw  content   heroW    air   font  lines  longest-fill')
+  console.log(`rule      ${opts.rule}`)
+  console.log(`seam      ${SEAM_BELOW_BASELINE}em below the baseline\n`)
+  console.log('   vw  content   heroW    air   font   rows  longest-fill  clipped')
 
   const tableStep = Math.max(opts.step, 128)
   for (let vw = opts.min; vw <= opts.max; vw += tableStep) {
@@ -341,7 +373,7 @@ function main(opts, faces) {
       `  ${String(vw).padStart(4)}   ${String(Math.round(d.content)).padStart(5)}` +
         `  ${String(Math.round(d.heroW)).padStart(6)} ${String(Math.round(d.air)).padStart(6)}` +
         `  ${d.fontPx.toFixed(1).padStart(5)}   ${String(d.lines.length).padStart(3)}` +
-        `    ${d.fill.toFixed(1).padStart(5)}%`
+        `    ${d.fill.toFixed(1).padStart(5)}%    ${d.clipped.toFixed(1).padStart(4)}px`
     )
   }
 
@@ -349,12 +381,14 @@ function main(opts, faces) {
   const heroShrank = []
   const airShrank = []
   const linesGrew = []
+  const noClip = []
   let prev = null
   let samples = 0
   for (let vw = opts.min; vw <= opts.max; vw += opts.step) {
     const d = at(vw)
     samples++
     if (d.fill > 100) overflow.push(`${vw}px (${d.fill.toFixed(1)}%, "${d.lines.find((l) => l.px === d.longest).text}")`)
+    if (d.clipped === 0) noClip.push(`${vw}px ("${d.lines.at(-1).text}")`)
     if (prev) {
       if (d.heroW < prev.heroW - 0.01) heroShrank.push(`${vw}px (${Math.round(prev.heroW)} → ${Math.round(d.heroW)})`)
       if (d.air < prev.air - 0.01) airShrank.push(`${vw}px (${Math.round(prev.air)} → ${Math.round(d.air)})`)
@@ -367,23 +401,22 @@ function main(opts, faces) {
     console.log(`  ${label.padEnd(26)}: ${hits.length ? `${hits.length} — ${hits.slice(0, 5).join(', ')}${hits.length > 5 ? ' …' : ''}` : 'none'}`)
 
   console.log(`\n${samples} samples, ${opts.min}–${opts.max}px every ${opts.step}px:`)
-  report('line overflows column', overflow)
+  report('row overflows column', overflow)
   report('heroW non-monotonic', heroShrank)
+  report('seam clips nothing', noClip)
   report('air non-monotonic', airShrank)
-  report('line count non-monotonic', linesGrew)
+  report('row count non-monotonic', linesGrew)
 
-  const failed = overflow.length > 0 || heroShrank.length > 0
-  console.log(
-    failed
-      ? `\nFAIL — ${overflow.length ? 'the hero overflows its column' : ''}` +
-          `${overflow.length && heroShrank.length ? ' and ' : ''}` +
-          `${heroShrank.length ? 'the hero narrows as the viewport widens' : ''}.`
-      : '\nPASS'
-  )
-  if (!failed && (airShrank.length || linesGrew.length)) {
+  const failures = [
+    overflow.length && 'the hero overflows its column',
+    heroShrank.length && 'the hero narrows as the viewport widens',
+    noClip.length && 'the last row has no ink below the seam',
+  ].filter(Boolean)
+  console.log(failures.length ? `\nFAIL — ${failures.join('; ')}.` : '\nPASS')
+  if (!failures.length && (airShrank.length || linesGrew.length)) {
     console.log('Composition warnings above are not failures, but they are worth a look.')
   }
-  return failed ? 1 : 0
+  return failures.length ? 1 : 0
 }
 
 try {
