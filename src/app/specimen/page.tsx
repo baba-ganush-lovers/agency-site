@@ -8,12 +8,7 @@ import "./specimen.css";
 // Numbers quoted here come from docs/type-system.md, measured by
 // scripts/measure-type.mjs against the real font files.
 
-const HERO_FULL =
-  "Most teams buy the thing that runs and the thing that tells them whether " +
-  "it’s working from two different places. Here they’re built by the " +
-  "same two people.";
-
-const HERO_TRIMMED =
+const HERO =
   "Most teams buy the thing that runs and the thing that tells them if it " +
   "works from two different places. We build both.";
 
@@ -86,7 +81,7 @@ function Step({
 function Panel({
   width,
   rule = "b",
-  sentence = HERO_FULL,
+  sentence = HERO,
   seam = false,
 }: {
   width: number;
@@ -151,19 +146,19 @@ export default function Specimen() {
               <tr>
                 <th className="p-2 text-left font-normal">metric</th>
                 <th className="p-2 text-right font-normal">Syne 600</th>
-                <th className="p-2 text-right font-normal">Syne 700</th>
                 <th className="p-2 text-right font-normal">Schibsted 400</th>
               </tr>
             </thead>
             <tbody>
               {[
-                ["cap height", "0.650", "0.650", "0.703"],
-                ["x-height", "0.500", "0.500", "0.527"],
-                ["avg lowercase advance", "0.5655", "0.6113", "0.5093"],
-                ["1ch (advance of “0”)", "0.6830", "0.7380", "0.6113"],
-                ["ink top", "+0.709", "+0.715", "+0.752"],
-                ["ink bottom", "−0.203", "−0.205", "−0.202"],
-                ["min line-height", "0.912", "0.920", "0.955"],
+                ["cap height", "0.650", "0.703"],
+                ["x-height", "0.500", "0.527"],
+                ["avg lowercase advance", "0.5655", "0.5093"],
+                ["1ch (advance of “0”)", "0.6830", "0.6113"],
+                ["ink top", "+0.709", "+0.752"],
+                ["ink bottom (descender)", "−0.203", "−0.202"],
+                ["ink bottom (overshoot)", "−0.011", "−0.010"],
+                ["min line-height", "0.912", "0.955"],
               ].map(([metric, ...cells]) => (
                 <tr key={metric} className="border-t border-fg/10">
                   <td className="p-2 text-fg/70">{metric}</td>
@@ -178,8 +173,8 @@ export default function Specimen() {
           </table>
         </div>
         <Note>
-          Syne is 1.200&times; Schibsted per character, but its cap height is
-          0.650 against 0.703 — so normalised for optical size it is 1.30&times;
+          Syne 600 is 1.110&times; Schibsted per character, but its cap height is
+          0.650 against 0.703 — so normalised for optical size it is 1.20&times;
           wider. It reads small for its point size and is wide. That compound is
           the whole wrapping problem.
         </Note>
@@ -187,18 +182,12 @@ export default function Specimen() {
 
       <Section title="The scale">
         <Note>
-          Bimodal: text in a narrow band, display an octave above, nothing in
-          between. No display step exists below 28px, which is what stops Syne
-          creeping under its 24px floor.
+          Bimodal: text in a narrow band, display above it, nothing in between.
+          No display step exists below 28px, which is what stops Syne creeping
+          under its 24px floor — and only one display register, because a second
+          one 1.5&times; away from this reads as a wobble rather than a step.
         </Note>
 
-        <Step
-          token="display-hero"
-          clamp="56 → 152px"
-          className="text-display-hero font-display"
-        >
-          We build systems that can be read
-        </Step>
         <Step
           token="display-lead"
           clamp="32 → 64px"
@@ -235,84 +224,23 @@ export default function Specimen() {
         </Step>
       </Section>
 
-      <Section title="How large should display-hero be?">
-        <Note>
-          152px is a fitting result, not a judgement — it is the largest size
-          that fits the widest authored line into the hero column at 1440, which
-          is not the same as the right size. Same string at all three. Unresolved
-          in PLACEHOLDERS.md.
-        </Note>
-        {[96, 120, 152].map((size) => (
-          <div key={size} className="mt-7 border-t border-fg/10 pt-4">
-            <Label>{size}px</Label>
-            <p
-              className="mt-3 font-display"
-              style={{
-                fontSize: `${size}px`,
-                lineHeight: 0.94,
-                letterSpacing: "-0.03em",
-                fontWeight: 700,
-              }}
-            >
-              We build systems that can be read
-            </p>
-          </div>
-        ))}
-        <Note>
-          And the register question — does Concept C need a second display size
-          at all, or does the lead size carry the whole page?
-        </Note>
-        <div className="mt-4 border-t border-fg/10 pt-4">
-          <Label>display-hero at maximum</Label>
-          <p className="mt-2 text-display-hero font-display">Systems that</p>
-          <div className="mt-5">
-            <Label>display-lead at maximum</Label>
-          </div>
-          <p className="mt-2 text-display-lead font-display">Systems that</p>
-        </div>
-      </Section>
 
       <Section title="Concept C hero, rule B, with the occlusion seam">
         <Note>
-          The seam crosses the final line 0.08em above the baseline (0.20em at
-          ≤480px, where a subtler cut would not read). Descenders pass behind
-          it; no letter body is hidden. The lime hairline marks where column 6
-          starts — above 1200 that is where the panel&rsquo;s vertical arm sits, and
-          the gap between it and the longest line is the clearance.
+          The seam sits 0.069em <em>below</em> the baseline. Descenders reach
+          −0.203em and round letters overshoot to −0.011em, so that offset clips
+          descenders and touches nothing else, with 0.058em of clearance under
+          the round letters. There is no mobile override: the whole descender is
+          0.203em, which at 32px is 6.5px, so there is nothing left to bite into
+          without cutting letter bodies. The lime hairline marks where column 6
+          starts, and the gap to the longest line is the clearance.
         </Note>
         {WIDTHS.map((width) => (
           <Panel key={width} width={width} seam />
         ))}
       </Section>
 
-      <Section title="Rule A against rule B">
-        <Note>
-          Identical below 1100. At 1200 rule A switches to a 5/6 column span,
-          which is narrower than the full content width at the same viewport —
-          so the hero drops from 1088px to 908px and gains a line as the window
-          gets wider. Rule B has no defect across 561 samples from 320 to 2560.
-        </Note>
-        {[1100, 1200, 1440].map((width) => (
-          <div key={width} className="mt-7 border-t border-fg/10 pt-4">
-            <Panel width={width} rule="a" />
-            <Panel width={width} rule="b" />
-          </div>
-        ))}
-      </Section>
 
-      <Section title="Full sentence against a trimmed one">
-        <Note>
-          28 words against 22. The full sentence runs to ten lines at 320px and
-          orphans &ldquo;people.&rdquo; at 1100 and 1200. This is a copy decision, not a
-          layout one.
-        </Note>
-        {[320, 1100, 1440].map((width) => (
-          <div key={width} className="mt-7 border-t border-fg/10 pt-4">
-            <Panel width={width} sentence={HERO_FULL} />
-            <Panel width={width} sentence={HERO_TRIMMED} />
-          </div>
-        ))}
-      </Section>
 
       <Section title="Measure">
         <Note>

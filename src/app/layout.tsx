@@ -3,11 +3,12 @@ import { Schibsted_Grotesk, Syne } from "next/font/google";
 import "./globals.css";
 
 // An explicit weight array requests discrete static instances rather than the
-// variable file — four small faces instead of two axis ranges we've ruled out
-// using. See docs/type-system.md.
+// variable file — small fixed faces instead of axis ranges we've ruled out
+// using. Syne is 600 only: there is one display register. See
+// docs/type-system.md.
 const syne = Syne({
   subsets: ["latin"],
-  weight: ["600", "700"],
+  weight: ["600"],
   variable: "--font-syne",
 });
 

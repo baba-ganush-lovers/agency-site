@@ -35,17 +35,32 @@
 .sim-hero {
   position: relative;
 
-  /* The seam is a sibling of .sim-lead, not a child, so the offset and the
-     font-size it is expressed in both have to live on their shared parent —
-     otherwise `em` resolves against body size and the custom property never
-     reaches the seam at all. */
+  /* The seam is a sibling of .sim-lead, not a child, so the offset, the
+     line-height and the font-size it is all expressed in have to live on their
+     shared parent — otherwise `em` resolves against body size and the custom
+     property never reaches the seam. */
   font-size: clamp(2rem, 1.3rem + 3cqw, 4rem);
+  --sim-lh: 1;
 
-  /* Seam offset, measured up from the block's bottom edge.
-     With line-height 1.0 the baseline sits 0.175em above it: the 1.20em
-     content area (ascender 0.925, descender 0.275) is centred in a 1.0em line
-     box. The seam goes 0.08em above the baseline, so 0.255em from the bottom. */
-  --seam-from-bottom: 0.255em;
+  /* Where the seam sits relative to the baseline. Measured in Syne 600:
+       descenders   g -0.203em, j/p/q/y -0.200em
+       overshoot    a b c d e o s u all -0.011em
+     To clip descenders and nothing else the seam must fall inside
+     (-0.203, -0.011) — BELOW the baseline. Sitting above it, as an earlier
+     version did, cuts letter bodies: the x-height is only 0.500em, so an
+     offset of +0.20em removed 40% of every letter.
+     -0.069em leaves 0.058em of clearance under the round letters and hides
+     0.134em of descender (4.3px at 320, 8.6px at 1440). There is no mobile
+     override, and there cannot be one: the whole descender is 0.203em, which
+     at 32px is 6.5px, so there is nothing left to bite into. */
+  --seam-below-baseline: 0.069em;
+
+  /* Baseline distance from the block's bottom edge is lh/2 - (asc+desc)/2.
+     Syne 600 sets USE_TYPO_METRICS, so the browser uses OS/2 typo asc 0.925 /
+     desc -0.275, giving the 0.325em constant. */
+  --seam-from-bottom: calc(
+    var(--sim-lh) * 0.5em - 0.325em - var(--seam-below-baseline)
+  );
 }
 
 /* Rule B — ships. Three terms, no breakpoint. */
@@ -68,19 +83,15 @@
   font-family: var(--font-syne);
   font-weight: 600;
   font-size: inherit;
-  line-height: 1;
+  line-height: var(--sim-lh);
   letter-spacing: -0.02em;
 }
 
+/* Only the line-height changes below 480px. The seam follows it through the
+   calc above rather than being restated, which is how the two drifted apart. */
 @container (max-width: 480px) {
-  .sim-lead {
-    line-height: 1.05;
-  }
-
   .sim-hero {
-    /* At 1.05 the baseline is 0.20em up, and small type needs the seam to bite
-       harder — 0.20em above the baseline rather than 0.08em. */
-    --seam-from-bottom: 0.4em;
+    --sim-lh: 1.05;
   }
 }
 

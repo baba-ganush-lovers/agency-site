@@ -7,7 +7,6 @@
 /* Line-heights sit outside @theme so a media query can override them. @theme
    emits var() references, so the type tokens below keep the indirection. */
 :root {
-  --lh-display-hero: 0.94;
   --lh-display-lead: 1;
   --lh-display-sub: 1.15;
   --lh-text-lead: 1.5;
@@ -24,7 +23,6 @@
 /* Smaller type at a shorter measure needs more leading, not the same amount. */
 @media (max-width: 480px) {
   :root {
-    --lh-display-hero: 1;
     --lh-display-lead: 1.05;
     --lh-text-body: 1.65;
   }
@@ -50,14 +48,11 @@
   --color-glow-violet: #6574ff;
 
   /* --- type ------------------------------------------------------------- */
-  /* Bimodal: text in a narrow band, display an octave above, nothing between.
-     Fluid range anchored 375 -> 1440. Middle terms are rem + vw, never bare
-     vw, so browser text zoom still works. See docs/type-system.md. */
-
-  --text-display-hero: clamp(3.5rem, 1.39rem + 9.01vw, 9.5rem);
-  --text-display-hero--line-height: var(--lh-display-hero);
-  --text-display-hero--letter-spacing: -0.03em;
-  --text-display-hero--font-weight: 700;
+  /* Bimodal: text in a narrow band, display above it, nothing between. One
+     display register only — a second one 1.5x away from this is the wobble the
+     empty mid-range exists to prevent. Fluid range anchored 375 -> 1440.
+     Middle terms are rem + vw, never bare vw, so text zoom still works.
+     See docs/type-system.md. */
 
   --text-display-lead: clamp(2rem, 1.3rem + 3vw, 4rem);
   --text-display-lead--line-height: var(--lh-display-lead);

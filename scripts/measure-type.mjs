@@ -25,9 +25,8 @@ import { dirname, join } from 'node:path'
 
 /** The current hero sentence. Change it here, then re-run this script. */
 const HERO =
-  'Most teams buy the thing that runs and the thing that tells them whether ' +
-  'it’s working from two different places. Here they’re built by the ' +
-  'same two people.'
+  'Most teams buy the thing that runs and the thing that tells them if it ' +
+  'works from two different places. We build both.'
 
 /** The `--text-display-lead` token, copied verbatim from globals.css. */
 const FONT = 'clamp(2rem, 1.30rem + 3.00vw, 4rem)'

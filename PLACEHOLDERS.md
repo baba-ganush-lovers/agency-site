@@ -5,31 +5,49 @@ Each entry is marked with a `PLACEHOLDER` comment at its site.
 
 ## Unresolved decisions
 
-### `display-hero` maximum — 152px is provisional
+### The occlusion seam only fires at some widths
 
-`--text-display-hero` currently tops out at 152px. That number is a **fitting
-result, not a judgement**: it is the largest size at which the widest authored
-line of the candidate headline fits the hero column at 1440, which is not the
-same as the right size.
+The seam clips descenders and nothing else — that is its contract, and it is now
+correct. But it can only clip a descender if the hero's **final line contains
+one**, and with the chosen copy it usually does not:
 
-`/specimen` renders 96 / 120 / 152 on the same string for the comparison, and
-`display-hero` beside `display-lead` at maximum for the related question —
-whether Concept C needs a second display register at all, or whether the lead
-size carries the whole page. If it doesn't, the token and the Syne 700 weight
-both come out.
+| viewport | final line | descender |
+|---|---|---|
+| 320 / 375 / 414 | "We build both." | none |
+| 568 | "build both." | none |
+| 768 | "different places. We build both." | `p` |
+| 900 / 1024 / 1100 / 1200 | "build both." | none |
+| 1440 and up | "places. We build both." | `p` |
 
-*Resolve at:* the milestone 1 step 1 gate.
+So at eight of twelve sampled widths the hero keeps its translucent layering but
+loses its occlusion — and occlusion is one of the only two depth mechanisms the
+rulebook permits.
 
-### Hero sentence — length undecided
+Three ways out, in the order I'd rank them:
 
-The current 28-word sentence runs to **ten lines at 320px** and orphans
-"people." on its own line at 1100 and 1200. A trimmed 22-word variant is
-rendered beside it in `/specimen`. This is a copy decision, not a layout one.
+1. **One word in the ending.** "We build both." has no descender in any letter.
+   Something like "We build both parts." or "We build the pair." restores it at
+   every width. Cheapest fix, but it is your copy.
+2. **Accept opportunistic occlusion.** The panel still crosses the block
+   boundary; where a descender exists it is clipped. Honest, but the hero reads
+   flat at most widths.
+3. **Give the panel a different bite** — have it cross the *ragged right edge*
+   of a line rather than the bottom. Needs the hero composition to be settled
+   first.
 
-Whichever wins, put it in `scripts/measure-type.mjs` as `HERO` and re-run the
-script — longest-line fill sits at 95–99%, so there is very little slack.
+*Resolve at:* the milestone 1 step 3 gate, with the hero. Not a token decision.
 
-*Resolve at:* the milestone 1 step 3 gate, with the hero.
+## Resolved since the last gate
+
+- **`display-hero` — cut.** 152px was a fitting result; 96px was chosen by eye,
+  which put it 1.5× from `display-lead` — inside the empty band the bimodal
+  scale exists to keep empty. The token and Syne 700 are both gone. Three font
+  faces load. Reasoning in `docs/type-system.md`.
+- **Hero copy — the 23-word version wins**, ending "We build both." It is
+  `HERO` in `scripts/measure-type.mjs`; 8 lines at 320, 4 at 1440, peak fill
+  99.8%, passes.
+- **Hero width — rule B.** `min(744.24px + 22.8873vw, 100%, 1061px)`.
+- **Seam offset — 0.069em below the baseline**, no mobile override.
 
 ## Temporary content
 
@@ -66,3 +84,6 @@ Listed because they look provisional and are not:
 - Hero width rule B's constants (`744.24px + 22.8873vw`) carry full precision
   on purpose. Rounding them reintroduces a measurable defect —
   `docs/type-system.md` explains why.
+- The seam offset of `0.069em` is bounded on both sides by measured ink and is
+  not a taste value. Above −0.011em it cuts letter bodies; below −0.203em it
+  clips nothing.
