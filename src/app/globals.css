@@ -1,26 +1,136 @@
-@import "tailwindcss";
+/* Scan only src/. Automatic detection reads every non-ignored file, which means
+   class names quoted in Markdown become real CSS — CLAUDE.md's own example of a
+   forbidden class was generating `bg-slate-900`. */
+@import "tailwindcss" source(none);
+@source "../../src";
 
+/* Line-heights sit outside @theme so a media query can override them. @theme
+   emits var() references, so the type tokens below keep the indirection. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --lh-display-hero: 0.94;
+  --lh-display-lead: 1;
+  --lh-display-sub: 1.15;
+  --lh-text-lead: 1.5;
+  --lh-text-body: 1.6;
+  --lh-text-small: 1.55;
+
+  /* Motion. Unused until the signature interaction; declared here so there is
+     one place they come from. */
+  --duration-micro: 200ms;
+  --duration-element: 400ms;
+  --duration-statement: 700ms;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+/* Smaller type at a shorter measure needs more leading, not the same amount. */
+@media (max-width: 480px) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --lh-display-hero: 1;
+    --lh-display-lead: 1.05;
+    --lh-text-body: 1.65;
   }
 }
 
+/* Families are resolved from the next/font variables set on <html>. */
+@theme inline {
+  --font-display: var(--font-syne);
+  --font-text: var(--font-schibsted);
+}
+
+@theme {
+  /* --- palette ---------------------------------------------------------- */
+  --color-bg: #2b103d;
+  --color-fg: #ffffff;
+  --color-violet: #6574ff;
+  --color-lime: #b8f60d;
+  --color-purple: #8103fc;
+
+  /* Glow field. Page background only — never on a card, button or heading. */
+  --color-abyss: #180a28;
+  --color-glow-blue: #2b5bd7;
+  --color-glow-violet: #6574ff;
+
+  /* --- type ------------------------------------------------------------- */
+  /* Bimodal: text in a narrow band, display an octave above, nothing between.
+     Fluid range anchored 375 -> 1440. Middle terms are rem + vw, never bare
+     vw, so browser text zoom still works. See docs/type-system.md. */
+
+  --text-display-hero: clamp(3.5rem, 1.39rem + 9.01vw, 9.5rem);
+  --text-display-hero--line-height: var(--lh-display-hero);
+  --text-display-hero--letter-spacing: -0.03em;
+  --text-display-hero--font-weight: 700;
+
+  --text-display-lead: clamp(2rem, 1.3rem + 3vw, 4rem);
+  --text-display-lead--line-height: var(--lh-display-lead);
+  --text-display-lead--letter-spacing: -0.02em;
+  --text-display-lead--font-weight: 600;
+
+  --text-display-sub: clamp(1.5rem, 1.41rem + 0.38vw, 1.75rem);
+  --text-display-sub--line-height: var(--lh-display-sub);
+  --text-display-sub--letter-spacing: -0.01em;
+  --text-display-sub--font-weight: 600;
+
+  --text-lead: clamp(1.125rem, 1.06rem + 0.28vw, 1.3125rem);
+  --text-lead--line-height: var(--lh-text-lead);
+  --text-lead--font-weight: 400;
+
+  --text-body: clamp(1rem, 0.98rem + 0.09vw, 1.0625rem);
+  --text-body--line-height: var(--lh-text-body);
+  --text-body--font-weight: 400;
+
+  --text-small: 0.875rem;
+  --text-small--line-height: var(--lh-text-small);
+  --text-small--font-weight: 400;
+
+  /* --- spacing ---------------------------------------------------------- */
+  /* Additive ramp, eight steps. Values that aren't here shouldn't be used.
+     The bare-numeric scale is cleared so p-4 can only mean --spacing-4. */
+  --spacing: initial;
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 20px;
+  --spacing-5: 32px;
+  --spacing-6: 52px;
+  --spacing-7: 84px;
+  --spacing-8: 136px;
+
+  /* Page margin and gutter are fluid, not stepped. Tiered values narrowed the
+     content width as the viewport widened — see docs/type-system.md. */
+  --spacing-page: clamp(20px, 5.45px + 4.545vw, 52px);
+  --spacing-gutter: clamp(20px, 14.55px + 1.705vw, 32px);
+
+  /* Section rhythm is its own scale, not a stretch of the ramp above. */
+  --spacing-section: clamp(84px, 12vh, 200px);
+
+  /* --- widths ----------------------------------------------------------- */
+  --container-content: 1280px;
+  --container-measure: 52ch; /* 71 characters. 1ch = 1.358 chars in Schibsted. */
+  --container-hero: min(744.24px + 22.8873vw, 100%, 1061px);
+
+  /* --- easing ----------------------------------------------------------- */
+  --ease-inout: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* The ground: deep plum darkened toward the edges, with two soft glows bleeding
+   in from opposite corners. Two sources maximum. */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background:
+    radial-gradient(
+      80% 60% at 12% 8%,
+      color-mix(in oklab, var(--color-glow-blue) 55%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      70% 55% at 88% 92%,
+      color-mix(in oklab, var(--color-glow-violet) 40%, transparent),
+      transparent 72%
+    ),
+    radial-gradient(120% 100% at 50% 50%, var(--color-bg), var(--color-abyss));
+  background-attachment: fixed;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-lime);
+  outline-offset: 3px;
 }
