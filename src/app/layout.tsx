@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { Schibsted_Grotesk, Syne } from "next/font/google";
+import { Header } from "@/components/layout/Header";
+import { Footer } from "@/components/layout/Footer";
+import { brand } from "@/config/brand";
 import "./globals.css";
 
 // An explicit weight array requests discrete static instances rather than the
@@ -19,9 +22,7 @@ const schibstedGrotesk = Schibsted_Grotesk({
 });
 
 export const metadata: Metadata = {
-  // PLACEHOLDER: the studio has no name yet. Deliberately a description rather
-  // than a name, so nothing has to be un-invented later.
-  title: "Software and data studio",
+  title: brand.name,
   description:
     "A two-person studio building software and the data that tells you whether it works.",
 };
@@ -32,7 +33,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${syne.variable} ${schibstedGrotesk.variable} h-full antialiased`}
     >
-      <body className="min-h-full font-text text-fg">{children}</body>
+      <body className="flex min-h-dvh flex-col font-text text-fg">
+        <Header />
+        <main className="flex flex-1 flex-col">{children}</main>
+        <Footer />
+      </body>
     </html>
   );
 }
