@@ -216,11 +216,43 @@ the seam and the line-height drifted apart in the first place:
 sets `USE_TYPO_METRICS`, so the browser uses the OS/2 typo values; here they
 match hhea, so there is no ambiguity.
 
-**Open problem.** The mechanism only shows when the final line *has* a
-descender. With the current hero copy it does not at 320, 375, 414, 568, 900,
-1024, 1100 or 1200 — only at 768 and 1440+, where "places." lands last. At the
-other widths the hero keeps its layering but loses its occlusion. This is a
-hero-build decision, not a token one; see `PLACEHOLDERS.md`.
+### The cut has to be real
+
+The specimen positioned a translucent panel *over* the last line and called
+the descenders "passing behind it". They did not. A 6% white fill over white
+ink is white ink; the hairline crossed the stem of the `p` in "places." and
+the stem carried on underneath, unchanged. The text read as sitting in front
+of the panel — layering, not occlusion.
+
+The hero therefore clips its own ink, and the panel begins where the ink
+stops:
+
+```css
+@utility hero-seam {
+  clip-path: inset(0 0 var(--seam-from-bottom) 0);
+  margin-bottom: calc(-1 * var(--seam-from-bottom));
+}
+```
+
+Both live on the `<h1>`, so the `em` in `--seam-from-bottom` resolves against
+the hero's own font-size and `--lh-display-lead` is the same variable that
+sets its line-height. The negative margin pulls the next block — the panel —
+up to the seam. Paint order is irrelevant: below the seam there is no ink to
+paint over. The panel has no `backdrop-filter`; there is nothing behind it but
+the glow, so blur would cost scroll performance for no visible return.
+
+### The last row has to carry a descender
+
+The seam can only clip a descender if the last row has one. The final
+sentence is a single atom (below), so whatever it carries is on the last row
+at every width; the check script fails if that is nothing. "We build both."
+is nothing — the ending is the studio's to write, and `PLACEHOLDERS.md` lists
+the measured candidates.
+
+What the seam hides is one glyph's tail: 0.134em, 8.6px at 64 and 4.3px at
+32. The contract forbids anything larger. The depth of the hero is carried by
+the panel's mass and hairline; the cut is the proof that the panel is in
+front, not the spectacle.
 
 ## The scale
 
@@ -251,19 +283,55 @@ Schibsted carries none: it is chosen to be quiet.
 
 These are typography rules that can only be honoured in the writing.
 
-- **No word longer than 18 characters at the 32px floor.** 320px leaves 280px,
-  which at Syne 600's 0.5655em advance is about 15.5 characters — and the check
-  script fails on anything wider. ("internationalisation" overflows until
-  352px.) A word that cannot fit at the floor must not exist in the headline.
-- **Display type never wraps on its own** where breaks matter. Headlines are marked up as phrase
-  atoms — `white-space: nowrap` units — so breaks can only fall on authored
-  seams. One DOM, one accessible string, no duplicated copies for a screen
-  reader to read twice, and no JS.
-  This also makes font swap safe: a metric-adjusted fallback can change a line's
-  *width*, but never *which words are on which line*, so the composition cannot
-  rearrange itself in front of the reader.
+- **No atom wider than the floor column.** 320px leaves 280px, which at Syne
+  600's 0.5655em advance and −0.02em tracking is about 16 characters. The check
+  script fails on anything wider. "the thing that runs" is 284px and had to be
+  split; "We build both parts." is 317px and cannot be a single atom.
+- **Every break is authored.** See "Authored lines" below. One DOM, one
+  accessible string, no duplicated copies for a screen reader to read twice,
+  and no JS.
 - `text-wrap: balance` is not used. It is non-deterministic across engines and
   would fight authored breaks.
+
+## Authored lines
+
+The headline is not greedy-wrapped. `src/config/hero.mjs` holds it as lines of
+phrase atoms; the component renders each line as a block span and each atom as
+a `white-space: nowrap` span. A line that fits is one row. A line that does
+not fit wraps at its atoms — and only there. There is no breakpoint: a line
+that fits at one width fits at every wider width where the column is wider in
+em, and the count of rows only ever falls as the viewport grows.
+
+```
+Most teams buy                          7.9em
+the thing / that runs / and the thing  15.5em   ← widest
+that tells them / if it works          11.9em
+from two / different places.           12.7em
+We build both.                          6.8em
+```
+
+Rows: 9 at 320, 8 at 375, 7 at 480, 6 at 568, 5 from 768 up. Longest-row
+fill 90.8% at 320, 99.0% at exactly 768 (line 2 just fits; a browser may keep
+it wrapped as "the thing that runs / and the thing" until about 790, which is
+an authored fallback, not a defect), 93.6% at 1440 and above.
+
+**Why five lines and not four.** Greedy wrapping packs this sentence into four
+rows at 97–99% between 900 and 1440 by breaking mid-phrase ("that / runs",
+"different / places."). Authored atoms cannot, because of a property of rule B
+that had not been put in numbers: the column is **18.5em wide at 1100 and
+16.6em at 1440**. The font's 3vw slope outruns the width cap, so the column
+narrows in em across the top of the range. A four-line composition that fits
+at 1200 gains a row at 1288 and again at 1392 — the wobble the sweep exists to
+catch, and it only shows once the sweep models atoms. Five authored lines with
+a short opening row hold from 768 to 2560 without a change.
+
+What was given up is density in the mid-range. It is a trade, made on
+purpose.
+
+**Font swap.** The fallback face carries an ascent override, so the baseline
+holds during the swap and the seam offset stays close. A width change can
+still move an atom between rows within its line, but never across an authored
+line boundary, and never in a way the sweep has not already seen.
 
 ## Hero width
 
@@ -286,6 +354,12 @@ hero keeps growing for a few pixels after the content stops, and the air on the
 right shrinks by 0.2px. Sub-pixel and invisible, but it is a real
 non-monotonicity and the sweep reports it.
 
+**The column narrows in em as it widens in px.** Rule B and the font clamp
+are both linear in the viewport, with different slopes: the column is 8.75em
+at 320, 18.5em at 1100, 17.0em at 1384 and 16.6em from 1440 on. Any
+composition has to be checked at 1440, not 1200 — the wide end is the
+tight end.
+
 **Rule A was rejected.** It switched from full content width to a 5/6 column
 span at 1200px. A 5/6 span is always narrower than the full width at the same
 viewport, so the hero jumped from 1088px to 908px and gained a line — narrowing
@@ -293,34 +367,43 @@ and reflowing as the window got *wider*. `--rule A` keeps it reproducible.
 
 ## Running the check
 
-The current hero copy is 23 words: *"Most teams buy the thing that runs and the
-thing that tells them if it works from two different places. We build both."*
-It runs to 8 lines at 320 and 4 at 1440, peak fill 99.8% at 1216.
+The script reads the same `heroLines` array the component renders, lays it
+out exactly as the markup does — block lines, unbreakable atoms — and sweeps
+320–2560 at 8px.
 
 ```
-node scripts/measure-type.mjs                     # current copy, rule B, 320–2560 @ 8px
-node scripts/measure-type.mjs --sentence "..."    # check new copy before committing it
+node scripts/measure-type.mjs                     # the headline as committed
+node scripts/measure-type.mjs --ending "..."      # swap the last line, as one atom
+node scripts/measure-type.mjs --lines "a / b | c"  # a whole headline: | lines, / atoms
 node scripts/measure-type.mjs --rule A            # reproduce the rejected rule's defect
 node scripts/measure-type.mjs --font "clamp(2rem, 1.30rem + 3.00vw, 4rem)"
 node scripts/measure-type.mjs --refresh           # re-fetch and re-measure the font files
 ```
 
-**Exit 1**, with every offending viewport named, on either:
+**Exit 1**, with every offending viewport named, on any of:
 
-- **a line exceeding 100% fill** — the hero overflows its column, and
-- **non-monotonic hero width** — the hero narrows as the viewport widens.
+- **a row exceeding 100% fill** — the hero overflows its column; an atom too
+  wide for the floor column shows up here,
+- **non-monotonic hero width** — the hero narrows as the viewport widens, and
+- **a last row with no ink below the seam** — the hero has no occlusion. This
+  is measured from each glyph's ink bottom against `--seam-below-baseline`,
+  not from a list of letters.
 
-Non-monotonic air and line count are reported but do not fail. They are
-composition problems rather than correctness ones; rule A's line count going
-5 → 6 at 1200 is how that rule was caught.
+**It fails as committed.** "We build both." carries no ink below the seam.
+That is the state until the studio writes the ending — see `PLACEHOLDERS.md`.
+
+Non-monotonic air and row count are reported but do not fail. They are
+composition problems rather than correctness ones; rule A's row count going
+5 → 6 at 1200 is how that rule was caught, and the four-line composition's
+4 → 5 at 1288 is how it was rejected.
 
 Exit 2 means bad input or an unmeasurable character.
 
-**Why this script exists.** Longest-line fill currently runs 95–99% across the
-whole range. There are single-digit pixels of slack at the tightest point, so a
-one-word change to the hero sentence can push a line past 100% at one specific
-viewport band — and a screenshot at three or four widths will not find it. Both
-defects recorded above were invisible at sampled widths and only appeared under
-a dense sweep.
+**Why this script exists.** At 768 the widest authored line fits its column
+with 1% to spare, so a one-word change can push a row past 100% at one
+specific viewport band — and a screenshot at three or four widths will not
+find it. Every defect recorded in this document was invisible at sampled
+widths and only appeared under a dense sweep.
 
-It does not run in CI yet. It should, once there is a hero to check.
+It does not run in CI yet. It should, once the ending is written and it
+passes.

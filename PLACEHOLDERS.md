@@ -3,51 +3,37 @@
 Everything temporary, and what has to happen before it stops being temporary.
 Each entry is marked with a `PLACEHOLDER` comment at its site.
 
-## Unresolved decisions
+## Waiting on copy
 
-### The occlusion seam only fires at some widths
+### The hero's last line — `src/config/hero.mjs`
 
-The seam clips descenders and nothing else — that is its contract, and it is now
-correct. But it can only clip a descender if the hero's **final line contains
-one**, and with the chosen copy it usually does not:
+"We build both." has no descender, so the seam has nothing to clip and the
+hero has no occlusion. `node scripts/measure-type.mjs` **fails by design**
+until the last line is rewritten; it exits 0 the moment the last atom carries
+ink below the seam.
 
-| viewport | final line | descender |
+The mechanism is settled: the final sentence is one unbreakable atom, so
+whatever descender it carries is on the last row at every width. The
+constraint on the writing is only that the atom fits the 280px column at the
+32px floor. Measured, as single atoms at 320:
+
+| ending | fill at 320 | fits |
 |---|---|---|
-| 320 / 375 / 414 | "We build both." | none |
-| 568 | "build both." | none |
-| 768 | "different places. We build both." | `p` |
-| 900 / 1024 / 1100 / 1200 | "build both." | none |
-| 1440 and up | "places. We build both." | `p` |
+| "We build the pair." | 98.0% | yes |
+| "We ship both." | 90.8% | yes |
+| "We build both parts." | 113.4% | no — unless split into two atoms |
+| "We build both, properly." | 133.0% | no — unless split into two atoms |
 
-So at eight of twelve sampled widths the hero keeps its translucent layering but
-loses its occlusion — and occlusion is one of the only two depth mechanisms the
-rulebook permits.
+Check a candidate with `node scripts/measure-type.mjs --ending "..."`.
 
-Three ways out, in the order I'd rank them:
+*Resolve at:* whenever the studio writes it. Not a gate.
 
-1. **One word in the ending.** "We build both." has no descender in any letter.
-   Something like "We build both parts." or "We build the pair." restores it at
-   every width. Cheapest fix, but it is your copy.
-2. **Accept opportunistic occlusion.** The panel still crosses the block
-   boundary; where a descender exists it is clipped. Honest, but the hero reads
-   flat at most widths.
-3. **Give the panel a different bite** — have it cross the *ragged right edge*
-   of a line rather than the bottom. Needs the hero composition to be settled
-   first.
+### Lead copy — `src/components/home/Hero.tsx`
 
-*Resolve at:* the milestone 1 step 3 gate, with the hero. Not a token decision.
-
-## Resolved since the last gate
-
-- **`display-hero` — cut.** 152px was a fitting result; 96px was chosen by eye,
-  which put it 1.5× from `display-lead` — inside the empty band the bimodal
-  scale exists to keep empty. The token and Syne 700 are both gone. Three font
-  faces load. Reasoning in `docs/type-system.md`.
-- **Hero copy — the 23-word version wins**, ending "We build both." It is
-  `HERO` in `scripts/measure-type.mjs`; 8 lines at 320, 4 at 1440, peak fill
-  99.8%, passes.
-- **Hero width — rule B.** `min(744.24px + 22.8873vw, 100%, 1061px)`.
-- **Seam offset — 0.069em below the baseline**, no mobile override.
+The panel below the hero holds `<PlaceholderBlock label="lead copy" />`.
+Written by the studio. The slot is `text-lead` at `max-w-measure`; it needs to
+be true (see the content rules in `CLAUDE.md`) and can be as short as one
+sentence.
 
 ## Temporary content
 
@@ -66,19 +52,20 @@ else to change.
 domain — it reads as a placeholder rather than a broken real address. Replace
 with the studio's real address once there is one.
 
-### `src/app/page.tsx` — holding page
+## Resolved at the step 3 gate
 
-One line and a link to the specimen. Replaced by the hero at step 3.
-
-### `/specimen` — temporary route
-
-`src/app/specimen/page.tsx` and `src/app/specimen/specimen.css`. Exists to make
-the type decisions visible rather than argued. **Delete both at the step 3
-gate**; nothing else imports them, and no specimen CSS was put into
-`globals.css`.
-
-What survives its deletion: `docs/type-system.md` and
-`scripts/measure-type.mjs`.
+- **The seam clips at every width** — mechanism-wise. The last line is one
+  atom, so its descender (once it has one) is always on the last row, and the
+  script guards it.
+- **The specimen's seam never occluded anything.** It painted a 6% white panel
+  over white text, which hides nothing; the descenders ran straight through
+  the hairline. The hero now clips its own ink at the seam and the panel
+  begins where the ink stops. `docs/type-system.md` has the details.
+- **Phrase atoms change the composition.** Atoms small enough for 320px make
+  the headline five authored lines, not four. The sweep now models the real
+  markup. `docs/type-system.md`, "Authored lines".
+- **`/specimen` and the holding page — deleted.** Nothing else imported them.
+  What survives: `docs/type-system.md` and `scripts/measure-type.mjs`.
 
 ## Not placeholders
 
@@ -91,3 +78,6 @@ Listed because they look provisional and are not:
 - The seam offset of `0.069em` is bounded on both sides by measured ink and is
   not a taste value. Above −0.011em it cuts letter bodies; below −0.203em it
   clips nothing.
+- The panel under the hero is full-bleed with no radius. It is the page's
+  second plane, not a card; a card's corner would curve under the first word
+  of the last line.
