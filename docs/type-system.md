@@ -57,10 +57,26 @@ and halve the font payload; that is a live option if 500 never gets used.
 `preload` is on and subsets are absent, though the docs describe it as a warning
 and mark the field optional.
 
-The fallback faces carry metric overrides, which is what keeps layout shift at
-zero: `Syne Fallback` is `local(Arial)` with `size-adjust: 98.47%`,
-`ascent-override: 93.93%`, `descent-override: 27.93%`; `Schibsted Grotesk
-Fallback` is `size-adjust: 104.49%`, `ascent-override: 93.46%`.
+The fallback faces carry metric overrides so the swap does not move anything.
+`Schibsted Grotesk Fallback` is next/font's own: `size-adjust: 104.49%`,
+`ascent-override: 93.46%`.
+
+**Syne's automatic fallback was wrong by 15%, and it was the hero's only
+layout shift.** next/font gave `local(Arial)` a `size-adjust` of 98.47%, from
+a font-wide average width. Against the headline's actual atoms, Syne 600
+measures 116–122% of Arial (115.8–118.8% per authored line). On the fallback
+the hero wrapped to 6 rows at 412px where Syne needs 8, and the panel jumped
+70px when the font landed — CLS 0.115, on a page with nothing else moving.
+
+`Syne Fallback` is now declared by hand in `globals.css`, with
+`adjustFontFallback: false` on the loader. `size-adjust: 116%` was chosen by
+sweeping 320–1440 at 4px in the browser and counting widths where the
+fallback's row count differed from Syne's: 91 of 281 with next/font's value,
+7 with 116% (all inside 504–516 and 756–764, where a line is within 1% of
+fitting), more with anything else. A single per-face scalar cannot get that
+to zero. The overrides are Syne's typo ascent and descent divided by the
+size-adjust, so the baseline and the seam stay where they are during the
+swap. `local(Roboto)` is the Android source; Android has no Arial.
 
 ## Measured constants
 

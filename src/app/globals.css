@@ -51,6 +51,25 @@
   }
 }
 
+/* What the hero renders in until Syne arrives. next/font's own fallback used
+   size-adjust 98.47%, from a font-wide average; against the headline's actual
+   atoms Syne measures 116-122% of Arial, so that fallback wrapped the hero
+   two rows short at phone widths and the panel jumped when the font landed.
+
+   116% is the value with the fewest row mismatches across 320-1440 (7 of 281
+   widths at 4px steps, all where a line sits within 1% of fitting). The
+   overrides are Syne's typo ascent 0.925 and descent 0.275 divided by the
+   size-adjust, so the baseline — and the seam — stay put during the swap.
+   Roboto is the Android local; Arial everywhere else. */
+@font-face {
+  font-family: "Syne Fallback";
+  src: local(Arial), local(Roboto);
+  size-adjust: 116%;
+  ascent-override: 79.74%;
+  descent-override: 23.71%;
+  line-gap-override: 0%;
+}
+
 /* Families are resolved from the next/font variables set on <html>. */
 @theme inline {
   --font-display: var(--font-syne);

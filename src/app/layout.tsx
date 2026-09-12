@@ -9,10 +9,17 @@ import "./globals.css";
 // variable file — small fixed faces instead of axis ranges we've ruled out
 // using. Syne is 600 only: there is one display register. See
 // docs/type-system.md.
+//
+// The automatic fallback is off: next/font sized it from a font-wide average
+// and it rendered the headline 15% too narrow, so the hero re-wrapped when
+// Syne arrived. "Syne Fallback" is declared in globals.css with values
+// measured against the actual headline.
 const syne = Syne({
   subsets: ["latin"],
   weight: ["600"],
   variable: "--font-syne",
+  adjustFontFallback: false,
+  fallback: ["Syne Fallback"],
 });
 
 const schibstedGrotesk = Schibsted_Grotesk({
